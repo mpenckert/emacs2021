@@ -1,0 +1,13 @@
+.#*
+.persistent-scratch
+auto-save-list/
+places
+recentf
+straight/
+var/
+
+*~
+
+/eshell/
+/.lsp-session-v1
+/projects

@@ -199,10 +199,7 @@
 (load-theme 'oil6)
 
 ;; Set the fixed pitch face
-(set-face-attribute 'fixed-pitch nil :font "Fira Code" :height 140)
-
-;; Set the variable pitch face
-(set-face-attribute 'variable-pitch nil :font "Fira Code" :height 170)
+(set-face-attribute 'default nil :font "Fira Code" :height 150)
 
 ;;;; Mode line
 
@@ -249,8 +246,7 @@
     mode-line-buffer-identification
     " "
     ;; Show the row and column of point.
-    mode-line-position
-    evil-mode-line-tag)
+    mode-line-position)
   "Composite mode line construct to be shown left-aligned."
   :type 'sexp)
 
@@ -436,7 +432,6 @@
 
 ;; Tabs
 (setq-default tab-width 2)
-(setq-default evil-shift-width tab-width)
 (setq-default indent-tabs-mode nil)
 
 ;; Clean Whitespace
@@ -489,3 +484,209 @@
 (use-package saveplace
   :config
   (save-place-mode t))
+
+(use-package dired
+  :straight nil
+  :commands (dired)
+  :hook (dired-mode . dired-hide-details-mode)
+  :bind ("C-x C-j" . dired-jump)
+  :custom
+  (dired-auto-revert-buffer t)
+  (dired-dwim-target t)
+  (dired-recursive-copies 'always)
+  (dired-recursive-deletes 'always)
+  (dired-listing-switches "-AFhlv --group-directories-first")
+  :init
+  (setq insert-directory-program "gls"))
+
+(use-package dired-x
+  :after dired
+  :straight nil
+  :init (setq-default dired-omit-files-p t)
+  :config
+  (add-to-list 'dired-omit-extensions ".DS_Store"))
+
+(use-package dired-single
+  :after dired)
+
+(use-package dired-hide-dotfiles
+  :hook (dired-mode . dired-hide-dotfiles-mode))
+
+(use-package dired-ranger
+  :after dired)
+
+(use-package dired-subtree
+  :after dired)
+
+;;;; ORG
+
+(defun felbit/org-setup ()
+  (org-indent-mode)
+  (blackout 'org-indent-mode)
+
+  (blackout 'buffer-face-mode)
+  (visual-line-mode 1)
+  (blackout 'visual-line-mode))
+
+(use-package org
+  :hook (org-mode . felbit/org-setup)
+  :config
+  (setq org-ellipsis " ▾"
+        org-hide-emphasis-markers t
+        org-src-fontify-natively t
+        org-src-tab-acts-natively t
+        org-edit-src-content-indentation 2
+        org-hide-block-startup nil
+        org-src-preserve-indentation nil
+        ;; org-startup-folded 'content
+        org-cycle-separator-lines 2)
+
+  (setq org-log-done 'time)
+  (setq org-log-into-drawer t))
+
+(use-package org-bullets
+  :hook (org-mode . org-bullets-mode)
+  :custom
+  (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+
+(use-package org-make-toc
+  :hook (org-mode . org-make-toc-mode))
+
+(use-package org-journal
+  :commands (org-journal-new-entry org-journal-open-current-journal-file)
+  :custom
+  (org-journal-date-format "%A, %d/%m/%Y")
+  (org-journal-date-prefix "* ")
+  (org-journal-file-format "%F.org")
+  (org-journal-dir "~/org/journal/")
+  (org-journal-file-type 'weekly)
+  (org-journal-find-file #'find-file))
+
+;; TODO: Look into org-roam!
+
+
+;;;; SHELL
+
+(setq exec-path (append exec-path '("/usr/local/bin")))
+
+(use-package vterm
+  :commands vterm
+  :config
+  (setq vterm-max-scrollback 10000))
+
+;;; eshell
+
+(defun felbit/eshell-history ()
+  "Browse eshell history."
+  (interactive)
+  (let ((candidates (cl-remove-duplicates
+                     (ring-elements eshell-history-ring)
+                     :test #'equal :from-end t))
+        (input (let ((input-start (save-excursion (eshell-bol)))
+                     (input-end (save-excursion (end-of-line) (point))))
+                 (buffer-substring-no-properties input-start input-end))))
+    (let ((selected (completing-read "Eshell history:"
+                                     candidates nil nil input)))
+      (end-of-line)
+      (eshell-kill-input)
+      (insert (string-trim selected)))))
+
+(defun felbit/configure-eshell ()
+  ;; Save command history when commands are entered
+  (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
+
+  ;; Truncate buffer for performance
+  (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
+
+  ;; Use Ivy to provide completions in eshell
+  (define-key eshell-mode-map (kbd "<tab>") 'completion-at-point)
+
+  (setq eshell-history-size          10000
+        eshell-buffer-maximum-lines  10000
+        eshell-hist-ignoredups           t
+        eshell-highlight-prompt          t
+        eshell-scroll-to-bottom-on-input t))
+
+(use-package eshell
+  :hook (eshell-first-time-mode . felbit/configure-eshell))
+
+(use-package exec-path-from-shell
+  :defer 1
+  :init
+  (setq exec-path-from-shell-check-startup-files nil)
+  :config
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize)))
+
+(with-eval-after-load 'esh-opt
+  (setq eshell-destroy-buffer-when-process-dies t))
+
+;;;; DEVELOPMENT
+
+(use-package project
+  :commands project-root
+  :bind
+  (("s-p" . project-find-file)
+   ("s-P" . project-switch-project))
+  :init
+  (defun project-magit-status+ ()
+    ""
+    (interactive)
+    (magit-status (project-root (project-current t))))
+  :custom
+  (project-switch-commands '((project-find-file "Find file")
+                             (project-find-regexp "Find regexp")
+                             (project-dired "Dired")
+                             (project-magit-status+ "Magit" ?m)
+                             (project-eshell "Eshell"))))
+
+(use-package magit
+  :custom
+  (magit-diff-refine-hunk 'all)
+  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+
+(use-package rg
+  :bind ("s-F" . rg-project)
+  :config
+  (rg-enable-default-bindings))
+
+(use-package lsp-mode
+  :hook ((clojure-mode . lsp)
+         (clojurec-mode . lsp)
+         (clojurescript-mode . lsp)
+         (lsp-mode . (lambda () (setq-local idle-highlight-mode nil))))
+  :custom
+  (lsp-enable-file-watchers nil)
+  (lsp-headerline-breadcrumb-enable nil)
+  (lsp-keymap-prefix "s-l")
+  (lsp-enable-indentation nil)
+  (lsp-clojure-custom-server-command '("bash" "-c" "/usr/local/bin/clojure-lsp"))
+  :config
+  (lsp-enable-which-key-integration t))
+
+;; Clojure
+(use-package clojure-mode
+  :defer t
+  :custom
+  (cljr-magic-requires nil)
+  :config
+  ;; (require 'flycheck-clj-kondo)
+  (setq clojure-indent-style 'align-arguments
+        clojure-align-forms-automatically t))
+
+(use-package clj-refactor
+  :defer t
+  :blackout t)
+
+(use-package cider
+  :commands cider
+  :custom
+  (cider-repl-display-help-banner nil)
+  (cider-repl-display-in-current-window nil)
+  (cider-repl-pop-to-buffer-on-connect nil)
+  (cider-repl-use-pretty-printing t)
+  (cider-repl-buffer-size-limit 100000)
+  (cider-repl-result-prefix ";; => "))
+
+(use-package clj-refactor
+  :hook (clojure-mode . clj-refactor-mode))
