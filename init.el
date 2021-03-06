@@ -136,7 +136,7 @@
 
 (setq default-frame-alist
       (append (list
-               '(font . "Monolisa-14")
+               '(font . "Fira-Code-14")
                '(min-height . 1) '(height     . 45)
                '(min-width  . 1) '(width      . 81)
                )))
@@ -193,13 +193,11 @@
   :hook
   (prog-mode . idle-highlight-mode))
 
-(add-to-list 'custom-theme-load-path "~/.config/emacs/themes")
-(use-package sketch-themes
-  :straight (:host github :repo "dawranliou/sketch-themes"))
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
 (load-theme 'oil6)
 
 ;; Set the fixed pitch face
-(set-face-attribute 'default nil :font "Fira Code" :height 150)
+(set-face-attribute 'default nil :font "Fira Code" :height 140)
 
 ;;;; Mode line
 
@@ -334,8 +332,8 @@
   (selectrum-prescient-mode +1))
 
 (use-package marginalia
-  :bind (:map minibuffer-local-map
-              ("C-M-a" . marginalia-cycle))
+  :bind ;(:map minibuffer-local-map
+         ("C-M-a" . marginalia-cycle)
   :init
   (marginalia-mode)
   ;; When using Selectrum, ensure that Selectrum is refreshed when cycling annotations.
@@ -369,7 +367,7 @@
 ;; Embark
 (use-package embark
   :bind
-  ("C-S-a" . embark-act)
+  ("C-s-a" . embark-act)
 
   :config
   ;; For Selectrum users:
@@ -664,13 +662,16 @@
   :config
   (lsp-enable-which-key-integration t))
 
+(use-package flycheck
+  :hook (prog-mode . flycheck-mode))
+
 ;; Clojure
 (use-package clojure-mode
   :defer t
   :custom
   (cljr-magic-requires nil)
   :config
-  ;; (require 'flycheck-clj-kondo)
+  (require 'flycheck-clj-kondo)
   (setq clojure-indent-style 'align-arguments
         clojure-align-forms-automatically t))
 
@@ -690,3 +691,32 @@
 
 (use-package clj-refactor
   :hook (clojure-mode . clj-refactor-mode))
+
+;;; Haskell
+
+;; tbd
+
+;;; Rust
+(use-package rustic
+  :init
+  ;; We use the superior default client provided by `lsp-mode', not the
+  ;; one rustic-mode sets up for us
+  (setq rustic-lsp-server 'rust-analyzer)
+  ;; disable rustic flycheck error display in modeline. Its redundant
+  (setq rustic-flycheck-setup-mode-line-p nil)
+
+  :hook ((rustic-mode . (lambda ()
+                          (lsp-ui-doc-mode)
+                          (company-mode))))
+  :config
+  (setq rust-indent-method-chain t)
+
+  ;; format using rustfmt on save
+  (setq rustic-format-on-save t)
+
+  (defun my-rustic-mode-hook ()
+    (set (make-local-variable 'company-backends)
+         '((company-capf company-files :with company-yasnippet)
+           (company-dabbrev-code company-dabbrev))))
+  (add-hook 'rustic-mode-hook #'my-rustic-mode-hook))
+
