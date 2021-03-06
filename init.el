@@ -1,5 +1,7 @@
 ;;; init.el -*- lexical-binding: t; -*-
 
+;;; Code:
+
 ;; The GC can easily double startup time, so we suppress it at startup
 ;; by turning up gc-cons-threshold (and perhaps gc-cons-percentage)
 ;; temporarily.
@@ -332,8 +334,8 @@
   (selectrum-prescient-mode +1))
 
 (use-package marginalia
-  :bind ;(:map minibuffer-local-map
-         ("C-M-a" . marginalia-cycle)
+  :bind (:map minibuffer-local-map
+         ("C-M-a" . marginalia-cycle))
   :init
   (marginalia-mode)
   ;; When using Selectrum, ensure that Selectrum is refreshed when cycling annotations.
@@ -556,7 +558,7 @@
   (org-journal-date-format "%A, %d/%m/%Y")
   (org-journal-date-prefix "* ")
   (org-journal-file-format "%F.org")
-  (org-journal-dir "~/org/journal/")
+  (org-journal-dir "~/Documents/org/journal/")
   (org-journal-file-type 'weekly)
   (org-journal-find-file #'find-file))
 
@@ -573,7 +575,6 @@
   (setq vterm-max-scrollback 10000))
 
 ;;; eshell
-
 (defun felbit/eshell-history ()
   "Browse eshell history."
   (interactive)
@@ -620,7 +621,6 @@
   (setq eshell-destroy-buffer-when-process-dies t))
 
 ;;;; DEVELOPMENT
-
 (use-package project
   :commands project-root
   :bind
@@ -662,16 +662,17 @@
   :config
   (lsp-enable-which-key-integration t))
 
-(use-package flycheck
-  :hook (prog-mode . flycheck-mode))
-
 ;; Clojure
+(use-package flycheck-clj-kondo
+  :disabled t
+  :defer t)
+
 (use-package clojure-mode
   :defer t
   :custom
   (cljr-magic-requires nil)
   :config
-  (require 'flycheck-clj-kondo)
+  ;; (require 'flycheck-clj-kondo)
   (setq clojure-indent-style 'align-arguments
         clojure-align-forms-automatically t))
 
@@ -702,21 +703,21 @@
   ;; We use the superior default client provided by `lsp-mode', not the
   ;; one rustic-mode sets up for us
   (setq rustic-lsp-server 'rust-analyzer)
+
   ;; disable rustic flycheck error display in modeline. Its redundant
   (setq rustic-flycheck-setup-mode-line-p nil)
 
-  :hook ((rustic-mode . (lambda ()
-                          (lsp-ui-doc-mode)
-                          (company-mode))))
+  :hook
+  ((rustic-mode . (lambda ()
+                    (lsp-ui-doc-mode)
+                    (company-mode))))
   :config
   (setq rust-indent-method-chain t)
+  (setq rustic-format-on-save t))
 
-  ;; format using rustfmt on save
-  (setq rustic-format-on-save t)
+(use-package flycheck
+  :straight nil
+  :defer t
+  :hook (prog-mode . flycheck-mode))
 
-  (defun my-rustic-mode-hook ()
-    (set (make-local-variable 'company-backends)
-         '((company-capf company-files :with company-yasnippet)
-           (company-dabbrev-code company-dabbrev))))
-  (add-hook 'rustic-mode-hook #'my-rustic-mode-hook))
-
+;;; init.el ends here
